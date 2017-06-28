@@ -78,7 +78,7 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
              usedJarPath = usedJar.path;
              target <- indirect.get(usedJarPath)
              if !direct.contains(usedJarPath)) {
-          warning(s"target $target should be added to deps!")
+          warning(s"target '$target' should be added to deps!")
         }
       }
 

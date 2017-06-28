@@ -69,7 +69,7 @@ class ClassPathShrinkerWithTargetsSpec {
   implicit class `nice warnings on sequence of strings`(warnings: Seq[String]) {
 
     private def checkWarningContainsMessage(target:String) = (_:String).contains(targetWarningMessage(target))
-    private def targetWarningMessage(target: String) = s"target $target should be added to deps"
+    private def targetWarningMessage(target: String) = s"target '$target' should be added to deps"
 
     def expectWarningOn(targets: String*) = targets.foreach(target => assert(
       warnings.exists(checkWarningContainsMessage(target)),
