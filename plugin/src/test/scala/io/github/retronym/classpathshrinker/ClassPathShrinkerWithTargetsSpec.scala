@@ -16,6 +16,16 @@ class ClassPathShrinkerWithTargetsSpec {
 
   import Dependencies._
 
+  @Test
+  def `unused jars are not reported when targets are used`(): Unit = {
+    val testCode =
+      """object Demo"""
+    val commonsPath = Coursier.getArtifact(commons)
+    val commonsTarget = "commonsTarget"
+    val indirect = Map(commonsPath -> commonsTarget)
+    run(testCode, withIndirect=indirect).expectNoJarMessageOn(commonsPath)
+  }
+
 
   @Test
   def `warn on indirect dependency target`(): Unit = {
@@ -80,6 +90,9 @@ class ClassPathShrinkerWithTargetsSpec {
       !warnings.exists(checkWarningContainsMessage(target)),
       s"warning on $target should not appear in warnings!")
 
+    def expectNoJarMessageOn(unusedJar: String) = assert(
+      !warnings.exists(_.contains(ClassPathFeedback.createWarningMsg(Seq(unusedJar)))),
+      "should not warn on unused jars when using targets!")
 }
 
 

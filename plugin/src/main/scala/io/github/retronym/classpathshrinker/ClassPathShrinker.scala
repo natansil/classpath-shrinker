@@ -18,6 +18,8 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
   var indirect: Map[String, String] = Map.empty
   var direct: Set[String] = Set.empty
 
+  var shouldWarnOnUnusedJars = true
+
   override def processOptions(options: List[String], error: (String) => Unit): Unit = {
     var indirectJars: Seq[String] = Seq.empty
     var indirectTargets: Seq[String] = Seq.empty
@@ -25,7 +27,7 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
     for (option <- options) {
       option.split(":").toList match {
         case "direct-jars" :: data => direct = data.toSet
-        case "indirect-jars" :: data => indirectJars = data
+        case "indirect-jars" :: data => indirectJars = data; shouldWarnOnUnusedJars = false
         case "indirect-targets" :: data => indirectTargets = data
         case unknown :: _ => error(s"unknown param $unknown")
         case Nil =>
@@ -65,10 +67,8 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
           userClasspathURLs.flatMap(x => toJar(x.toURI)).map(_.getCanonicalPath).toList
         val unneededClasspath =
           userClasspathStrings.filterNot(s => usedClasspathStrings.contains(s))
-        if (unneededClasspath.nonEmpty) {
-          warning(ClassPathFeedback.createWarningMsg(unneededClasspath))
-        }
 
+        if (shouldWarnOnUnusedJars) warnOnUnusedJars(unneededClasspath)
         warnOnIndirectTargetsFoundIn(usedJars)
 
       }
@@ -83,6 +83,12 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
       }
 
       override def apply(unit: CompilationUnit): Unit = ()
+    }
+
+    private def warnOnUnusedJars(unneededClasspath: List[String]) = {
+      if (unneededClasspath.nonEmpty) {
+        warning(ClassPathFeedback.createWarningMsg(unneededClasspath))
+      }
     }
   }
 
