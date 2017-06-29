@@ -70,7 +70,6 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
 
         if (shouldWarnOnUnusedJars) warnOnUnusedJars(unneededClasspath)
         warnOnIndirectTargetsFoundIn(usedJars)
-
       }
 
       private def warnOnIndirectTargetsFoundIn(usedJars: Set[AbstractFile]) = {
@@ -78,7 +77,7 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
              usedJarPath = usedJar.path;
              target <- indirect.get(usedJarPath)
              if !direct.contains(usedJarPath)) {
-          warning(s"target '$target' should be added to deps!")
+          reporter.error(NoPosition, s"Target '$target' is used but isn't explicitly declared, please add it to the deps")
         }
       }
 

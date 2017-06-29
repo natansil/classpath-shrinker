@@ -85,8 +85,7 @@ object TestUtil {
     val extraClasspath = withDirect ++ withIndirect.keys
 
     val reporter: StoreReporter = runCompilation(code, compileOptions, extraClasspath)
-    failOnErrors(reporter)
-    reporter.infos.collect({ case msg if msg.severity == reporter.WARNING => msg.msg }).toSeq
+    reporter.infos.collect({ case msg if msg.severity == reporter.ERROR => msg.msg }).toSeq
   }
 
   private def failOnErrors(reporter: StoreReporter) =
