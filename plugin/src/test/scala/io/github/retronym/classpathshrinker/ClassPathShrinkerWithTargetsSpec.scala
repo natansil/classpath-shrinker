@@ -8,6 +8,7 @@ import org.junit.runners.JUnit4
 
 @RunWith(classOf[JUnit4])
 class ClassPathShrinkerWithTargetsSpec {
+
   object Dependencies {
     val commons =
       Dependency(Module("org.apache.commons", "commons-lang3"), "3.5")
@@ -23,7 +24,7 @@ class ClassPathShrinkerWithTargetsSpec {
     val commonsPath = Coursier.getArtifact(commons)
     val commonsTarget = "commonsTarget"
     val indirect = Map(commonsPath -> commonsTarget)
-    run(testCode, withIndirect=indirect).expectNoJarMessageOn(commonsPath)
+    run(testCode, withIndirect = indirect).expectNoJarMessageOn(commonsPath)
   }
 
 
@@ -35,9 +36,9 @@ class ClassPathShrinkerWithTargetsSpec {
         |}
       """.stripMargin
     val commonsPath = Coursier.getArtifact(commons)
-    val commonsTarget = "commonsTarget"
+    val commonsTarget = "//commons:Target".encode()
     val indirect = Map(commonsPath -> commonsTarget)
-    run(testCode, withIndirect=indirect).expectWarningOn(indirect(commonsPath))
+    run(testCode, withIndirect = indirect).expectWarningOn(indirect(commonsPath).decoded)
   }
 
   @Test
@@ -51,11 +52,11 @@ class ClassPathShrinkerWithTargetsSpec {
     val commonsPath = Coursier.getArtifact(commons)
     val commonsTarget = "commonsTarget"
 
-    val guavaPath =  Coursier.getArtifact(guava)
+    val guavaPath = Coursier.getArtifact(guava)
     val guavaTarget = "guavaTarget"
 
     val indirect = Map(commonsPath -> commonsTarget, guavaPath -> guavaTarget)
-    run(testCode, withIndirect=indirect).expectWarningOn(commonsTarget, guavaTarget)
+    run(testCode, withIndirect = indirect).expectWarningOn(commonsTarget, guavaTarget)
   }
 
   @Test
@@ -70,15 +71,14 @@ class ClassPathShrinkerWithTargetsSpec {
 
     val direct = Seq(commonsPath)
     val indirect = Map(commonsPath -> commonsTarget)
-    run(testCode, withDirect=direct, withIndirect=indirect).noWarningsOn(commonsTarget)
+    run(testCode, withDirect = direct, withIndirect = indirect).noWarningsOn(commonsTarget)
   }
-
-
 
 
   implicit class `nice warnings on sequence of strings`(warnings: Seq[String]) {
 
-    private def checkWarningContainsMessage(target:String) = (_:String).contains(targetWarningMessage(target))
+    private def checkWarningContainsMessage(target: String) = (_: String).contains(targetWarningMessage(target))
+
     private def targetWarningMessage(target: String) = s"target '$target' should be added to deps"
 
     def expectWarningOn(targets: String*) = targets.foreach(target => assert(
@@ -93,8 +93,15 @@ class ClassPathShrinkerWithTargetsSpec {
     def expectNoJarMessageOn(unusedJar: String) = assert(
       !warnings.exists(_.contains(ClassPathFeedback.createWarningMsg(Seq(unusedJar)))),
       "should not warn on unused jars when using targets!")
-}
+  }
 
+  implicit class `decode bazel lables`(targetLabel: String) {
+    def decoded() = {
+      targetLabel.replace(";", ":")
+    }
 
-
+    def encode() = {
+      targetLabel.replace(":", ";")
+    }
+  }
 }

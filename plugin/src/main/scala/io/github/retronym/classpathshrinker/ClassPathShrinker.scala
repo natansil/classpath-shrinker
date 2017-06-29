@@ -28,7 +28,7 @@ class ClassPathShrinker(val global: Global) extends Plugin with Compat {
       option.split(":").toList match {
         case "direct-jars" :: data => direct = data.toSet
         case "indirect-jars" :: data => indirectJars = data; shouldWarnOnUnusedJars = false
-        case "indirect-targets" :: data => indirectTargets = data
+        case "indirect-targets" :: data => indirectTargets = data.map(_.replace(";", ":"))
         case unknown :: _ => error(s"unknown param $unknown")
         case Nil =>
       }
