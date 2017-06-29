@@ -14,6 +14,7 @@ import scala.tools.nsc.{CompilerCommand, Global, Settings}
 import scalaz.concurrent.Task
 
 object TestUtil {
+
   import scala.language.postfixOps
 
   /** Evaluate using global instance instead of toolbox because toolbox seems
@@ -62,22 +63,41 @@ object TestUtil {
     reporter.infos
       .map { info =>
         if (info.pos == NoPosition) info.msg
-        else s"""[${info.pos.source}]:${info.pos.line}: ${info.msg}"""
+        else
+          s"""[${info.pos.source}]:${info.pos.line}: ${info.msg}"""
       }
       .mkString("\n")
   }
 
+
+  private def constructParam(name: String, values: Iterable[String]) = {
+    if (values.isEmpty) ""
+    else s"-P:classpath-shrinker:$name:${values.mkString(":")}"
+  }
+
+  def run(code: String, withDirect: Seq[String] = Seq.empty, withIndirect: Map[String, String] = Map.empty): Seq[String] = {
+    val compileOptions = Seq(
+      constructParam("direct-jars", withDirect),
+      constructParam("indirect-jars", withIndirect.keys),
+      constructParam("indirect-targets", withIndirect.values)
+    ).mkString(" ")
+
+    val extraClasspath = withDirect ++ withIndirect.keys
+
+    val reporter: StoreReporter = runCompilation(code, compileOptions, extraClasspath)
+    reporter.infos.collect({ case msg if msg.severity == reporter.ERROR => msg.msg }).toSeq
+  }
+
+  private def failOnErrors(reporter: StoreReporter) =
+    reporter.infos.collectFirst({ case msg if msg.severity == reporter.ERROR => msg.msg }).foreach { msg =>
+      throw new RuntimeException(s"error while running compilation: $msg")
+    }
+
+
   def expectWarning(expectedWarning: String,
                     compileOptions: String = "",
                     extraClasspath: Seq[String])(code: String): Unit = {
-    val fullClasspath: String = {
-      val extraClasspathString = extraClasspath.mkString(":")
-      if (toolboxClasspath.isEmpty) extraClasspathString
-      else s"$toolboxClasspath:$extraClasspathString"
-    }
-    val basicOptions =
-      createBasicCompileOptions(fullClasspath, toolboxPluginOptions)
-    val reporter = eval(code, s"$basicOptions $compileOptions")
+    val reporter = runCompilation(code, compileOptions, extraClasspath)
     assert(
       existsWarning(expectedWarning, reporter), {
         val errors = prettyPrintErrors(reporter)
@@ -87,11 +107,24 @@ object TestUtil {
     )
   }
 
+  private def runCompilation(code: String, compileOptions: String, extraClasspath: Seq[String]) = {
+    val fullClasspath: String = {
+      val extraClasspathString = extraClasspath.mkString(":")
+      if (toolboxClasspath.isEmpty) extraClasspathString
+      else s"$toolboxClasspath:$extraClasspathString"
+    }
+    val basicOptions =
+      createBasicCompileOptions(fullClasspath, toolboxPluginOptions)
+    eval(code, s"$basicOptions $compileOptions")
+  }
+
   object Coursier {
     private final val repositories = Seq(
       Cache.ivy2Local,
       MavenRepository("https://repo1.maven.org/maven2")
     )
+
+    def getArtifact(dependency: Dependency) = getArtifacts(Seq(dependency)).head
 
     def getArtifacts(deps: Seq[Dependency]): Seq[String] =
       getArtifacts(deps, toAbsolutePath)
@@ -121,4 +154,5 @@ object TestUtil {
     private def toRelativePath(f: File): String =
       Paths.get(System.getProperty("user.dir")).relativize(f.toPath).toString
   }
+
 }
